@@ -6,7 +6,7 @@ import {
   Search, Plus, Download, Info, Trash2, User, FileText, 
   LayoutDashboard, LogOut, Menu, X, ShieldCheck, Smartphone,
   FileBox, Calendar, Briefcase, FileSearch, Archive, CheckCircle,
-  Clock, MapPin, Eye, AlertCircle, QrCode, Lock, ChevronLeft,
+  Clock, MapPin, Eye, EyeOff, AlertCircle, QrCode, Lock, ChevronLeft,
   ChevronRight, Bell, Settings, Filter, MoreVertical, Share2, 
   Printer, RefreshCw, ArrowLeft, ClipboardList, Camera, ImageIcon, 
   Upload, Edit3, Save, Check, File as FileIcon, Hash, ChevronDown, 
@@ -20,6 +20,10 @@ const globalStyles = `
   .font-garamond {
     font-family: 'EB Garamond', 'Cormorant Garamond', serif !important;
   }
+  
+  /* Menghilangkan scrollbar pada menu navigasi untuk tampilan rapi */
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 `;
 
 /* --- Konfigurasi Keamanan (Standard TOTP) --- */
@@ -158,6 +162,7 @@ export default function App() {
  
   const [nip, setNip] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [loginError, setLoginError] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -170,6 +175,7 @@ export default function App() {
   
   const [isUploading, setIsUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [previewingId, setPreviewingId] = useState(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedFileName, setSelectedFileName] = useState('');
@@ -314,6 +320,50 @@ export default function App() {
   function handleUploadClick() {
     if (uploadFileInputRef.current) uploadFileInputRef.current.click();
   }
+
+  const handlePreview = async (file) => {
+    setPreviewingId(file.id);
+    try {
+      let url = file.fileData; 
+      if (!url && file.chunkCount > 0) {
+        let fullData = '';
+        for (let i = 0; i < file.chunkCount; i++) {
+           const chunkDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'fileChunks', `${file.fileId}_${i}`));
+           if (chunkDoc.exists()) fullData += chunkDoc.data().data;
+        }
+        url = fullData;
+      }
+      
+      if (!url) {
+        // Fallback jika tidak ada data asli
+        const dummyContent = `DATA SIMULASI: ${file.name}\nKATEGORI: ${file.category}\nSURAT TUGAS: ${file.stNumber}\nTAHUN: ${file.year}`;
+        const blob = new Blob([dummyContent], { type: 'text/plain' });
+        url = URL.createObjectURL(blob);
+      } else if (url.startsWith('data:')) {
+        // Konversi Data URI (Base64) ke Blob agar aman dibuka di tab baru (mencegah blokir browser)
+        const arr = url.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        if (mimeMatch) {
+            const mime = mimeMatch[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while(n--){
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            const blob = new Blob([u8arr], {type: mime});
+            url = URL.createObjectURL(blob);
+        }
+      }
+      
+      window.open(url, '_blank');
+    } catch (error) {
+       console.error("Error previewing file:", error);
+       setModal({ type: 'error', data: { message: 'Gagal memuat pratinjau berkas. Silakan coba lagi nanti.' } });
+    } finally {
+       setPreviewingId(null);
+    }
+  };
 
   const handleDownload = async (file) => {
     setDownloadingId(file.id);
@@ -488,7 +538,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    setCurrentUser(null); setNip(''); setPassword('');
+    setCurrentUser(null); setNip(''); setPassword(''); setShowPassword(false);
     setOtp(['','','','','','']); setOtpError('');
     setActiveCategory(null); setSelectedStaff(null); setLoginStep('select');
     setLinkEmail(''); setLinkageInfo(null);
@@ -685,7 +735,7 @@ export default function App() {
                 </div>
             ) : (
                 <div className="animate-in fade-in slide-in-from-left-4 duration-500 w-full h-full flex flex-col justify-center">
-                    <button onClick={() => { setLoginStep('select'); setLoginError(''); setNip(''); setPassword(''); }} className="mb-6 flex items-center gap-2 text-[10px] text-cyan-700 uppercase tracking-widest hover:translate-x-[-4px] active:scale-95 transition-all leading-none"><ArrowLeft size={14}/> Kembali</button>
+                    <button onClick={() => { setLoginStep('select'); setLoginError(''); setNip(''); setPassword(''); setShowPassword(false); }} className="mb-6 flex items-center gap-2 text-[10px] text-cyan-700 uppercase tracking-widest hover:translate-x-[-4px] active:scale-95 transition-all leading-none"><ArrowLeft size={14}/> Kembali</button>
                     <div className="mb-6 text-center text-gray-800">
                         <h2 className="text-[22px] tracking-tighter uppercase leading-none text-gray-900 drop-shadow-sm">{loginStep === 'admin-form' ? 'Admin Login' : 'User Login'}</h2>
                         <p className="text-gray-600 text-[8px] uppercase tracking-[0.25em] mt-2.5 leading-none">Masukkan Kredensial Akses</p>
@@ -698,7 +748,12 @@ export default function App() {
                         </div>
                         <div className="space-y-1.5 group">
                             <label className="text-[9px] text-gray-600 uppercase tracking-widest ml-1 leading-none group-hover:text-cyan-700 transition-colors">PASSWORD</label>
-                            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-5 py-3.5 rounded-[1rem] border-[1.5px] border-white/60 focus:border-cyan-500 outline-none text-[12px] bg-white/60 backdrop-blur-sm text-gray-800 shadow-inner uppercase transition-all hover:bg-white/80 focus:bg-white/90" placeholder="••••••••" />
+                            <div className="relative">
+                                <input type={showPassword ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-5 py-3.5 rounded-[1rem] border-[1.5px] border-white/60 focus:border-cyan-500 outline-none text-[14px] font-sans tracking-widest bg-white/60 backdrop-blur-sm text-gray-800 shadow-inner transition-all hover:bg-white/80 focus:bg-white/90 pr-12" placeholder="••••••••" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-700 transition-colors focus:outline-none">
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
                         </div>
                         <button type="submit" style={globalGradientStyle} className="w-full py-4 rounded-[1rem] shadow-md hover:shadow-xl transform hover:-translate-y-0.5 active:scale-95 transition-all duration-300 text-[11px] tracking-[0.2em] uppercase mt-2 leading-none backdrop-blur-sm font-bold">Masuk</button>
                     </form>
@@ -731,67 +786,68 @@ export default function App() {
         {/* Panel Cream Transparan 30% */}
         <div className="max-w-md w-full bg-[#FDF5E6]/30 backdrop-blur-md p-16 rounded-[4rem] shadow-[0_30px_60px_rgba(0,0,0,0.12)] border border-white/30 text-center z-10 uppercase transition-all duration-500 hover:scale-[1.01] relative overflow-hidden">
           
-          {/* Layar Animasi Selamat Datang (Overlay) */}
-          {showWelcome && (
-              <div className="absolute inset-0 bg-[#FDF5E6]/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
+          {showWelcome ? (
+              <div className="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500 py-8 min-h-[300px]">
                   <div className="w-24 h-24 bg-green-50 rounded-full flex items-center justify-center mb-6 shadow-inner animate-bounce border-[3px] border-green-200">
                       <ShieldCheck size={48} className="text-green-600" />
                   </div>
                   <h2 className="text-3xl text-gray-900 tracking-tighter uppercase leading-none drop-shadow-sm">Selamat Datang</h2>
                   <p className="text-gray-600 font-bold mt-4 tracking-widest text-[10px] uppercase">Memuat Dashboard...</p>
               </div>
-          )}
-
-          <div className={`w-24 h-24 bg-white/50 backdrop-blur-sm rounded-[2.5rem] mx-auto mb-10 flex items-center justify-center shadow-inner border border-white/50 leading-none transition-transform duration-300 ${isLinked ? 'hover:scale-110 text-green-600' : 'hover:rotate-12 text-[#3c8dbc]'}`}>
-            {isLinked ? <ShieldCheck size={48} /> : <QrCode size={48} />}
-          </div>
-          <h2 className="text-2xl text-gray-900 mb-2 tracking-tighter uppercase leading-none text-center drop-shadow-sm">Verifikasi Keamanan</h2>
-          
-          {isLinked ? (
-            <div className="my-10 animate-in fade-in zoom-in duration-500">
-                <p className="text-gray-800 font-black text-xl tracking-widest mb-1 drop-shadow-sm bg-white/50 inline-block px-6 py-2 rounded-full border border-white/50 shadow-sm">e-Kakape Irban 1</p>
-                <div className="bg-green-50/90 backdrop-blur-md border-[1.5px] border-green-200/50 p-6 rounded-3xl shadow-sm text-center mt-6">
-                    <div className="flex items-center justify-center gap-2 text-green-700">
-                        <Lock size={16} />
-                        <span className="text-[12px] font-black tracking-widest uppercase">Keamanan MFA Aktif</span>
-                    </div>
-                    <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-4 leading-relaxed bg-white/60 p-3 rounded-xl border border-white/50">
-                        TERTAUT PADA EMAIL: <br/> <span className="text-green-700 text-[11px] block mt-1 lowercase font-black tracking-widest">{maskEmail(linkageInfo?.email || 'EMAIL ANDA')}</span>
-                    </p>
-                </div>
-            </div>
           ) : (
-            <div className="my-10 animate-in fade-in duration-500">
-                 <div className="p-5 bg-white/50 backdrop-blur-sm border-[1.5px] border-white/50 rounded-[3rem] inline-block shadow-sm hover:border-gray-200 transition-colors">
-                     <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(getQrData())}`} alt="QR" className="w-48 h-48 rounded-2xl mix-blend-multiply" />
-                 </div>
-                 <div className="mt-8 space-y-2 text-left">
-                     <label className="text-[9px] text-gray-800 uppercase tracking-widest ml-1 font-bold flex items-center gap-2"><Mail size={12}/> TAUTKAN AKUN GMAIL</label>
-                     <input 
-                         type="email" 
-                         required 
-                         value={linkEmail} 
-                         onChange={e => setLinkEmail(e.target.value)} 
-                         className="w-full px-5 py-4 rounded-[1.5rem] border-[1.5px] border-white/60 focus:border-cyan-500 outline-none text-[12px] bg-white/60 backdrop-blur-sm text-gray-800 shadow-inner lowercase transition-all hover:bg-white/80 focus:bg-white/90 font-sans tracking-wide font-medium" 
-                         placeholder="wajib @gmail.com untuk keamanan" 
-                     />
-                 </div>
-            </div>
-          )}
+              <>
+                  <div className={`w-24 h-24 bg-white/50 backdrop-blur-sm rounded-[2.5rem] mx-auto mb-10 flex items-center justify-center shadow-inner border border-white/50 leading-none transition-transform duration-300 ${isLinked ? 'hover:scale-110 text-green-600' : 'hover:rotate-12 text-[#3c8dbc]'}`}>
+                    {isLinked ? <ShieldCheck size={48} /> : <QrCode size={48} />}
+                  </div>
+                  <h2 className="text-2xl text-gray-900 mb-2 tracking-tighter uppercase leading-none text-center drop-shadow-sm">Verifikasi Keamanan</h2>
+                  
+                  {isLinked ? (
+                    <div className="my-10 animate-in fade-in zoom-in duration-500">
+                        <p className="text-gray-800 font-black text-xl tracking-widest mb-1 drop-shadow-sm bg-white/50 inline-block px-6 py-2 rounded-full border border-white/50 shadow-sm">e-Kakape Irban 1</p>
+                        <div className="bg-green-50/90 backdrop-blur-md border-[1.5px] border-green-200/50 p-6 rounded-3xl shadow-sm text-center mt-6">
+                            <div className="flex items-center justify-center gap-2 text-green-700">
+                                <Lock size={16} />
+                                <span className="text-[12px] font-black tracking-widest uppercase">Keamanan MFA Aktif</span>
+                            </div>
+                            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-4 leading-relaxed bg-white/60 p-3 rounded-xl border border-white/50">
+                                TERTAUT PADA EMAIL: <br/> <span className="text-green-700 text-[11px] block mt-1 lowercase font-black tracking-widest">{maskEmail(linkageInfo?.email || 'EMAIL ANDA')}</span>
+                            </p>
+                        </div>
+                    </div>
+                  ) : (
+                    <div className="my-10 animate-in fade-in duration-500">
+                         <div className="p-5 bg-white/50 backdrop-blur-sm border-[1.5px] border-white/50 rounded-[3rem] inline-block shadow-sm hover:border-gray-200 transition-colors">
+                             <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(getQrData())}`} alt="QR" className="w-48 h-48 rounded-2xl mix-blend-multiply" />
+                         </div>
+                         <div className="mt-8 space-y-2 text-left">
+                             <label className="text-[9px] text-gray-800 uppercase tracking-widest ml-1 font-bold flex items-center gap-2"><Mail size={12}/> TAUTKAN AKUN GMAIL</label>
+                             <input 
+                                 type="email" 
+                                 required 
+                                 value={linkEmail} 
+                                 onChange={e => setLinkEmail(e.target.value)} 
+                                 className="w-full px-5 py-4 rounded-[1.5rem] border-[1.5px] border-white/60 focus:border-cyan-500 outline-none text-[12px] bg-white/60 backdrop-blur-sm text-gray-800 shadow-inner lowercase transition-all hover:bg-white/80 focus:bg-white/90 font-sans tracking-wide font-medium" 
+                                 placeholder="wajib @gmail.com untuk keamanan" 
+                             />
+                         </div>
+                    </div>
+                  )}
 
-          <form onSubmit={handleVerifyOtp} className="space-y-10 uppercase text-center flex flex-col items-center">
-            <div className="flex flex-col items-center w-full">
-              <div className="flex justify-center gap-3">
-                {otp.map((digit, idx) => (
-                  <input key={idx} id={`otp-${idx}`} type="text" maxLength="1" className={`w-12 h-16 text-center text-3xl border-[1.5px] border-gray-300/50 rounded-2xl focus:border-cyan-500 focus:-translate-y-1 hover:-translate-y-1 outline-none transition-all duration-300 shadow-sm bg-white/70 backdrop-blur-sm text-gray-800 ${otpError ? 'border-red-400' : 'border-gray-200/50'}`} value={digit} onChange={(e) => handleOtpChange(idx, e.target.value)} onKeyDown={(e) => { if (e.key === 'Backspace' && !digit && idx > 0) { const prev = document.getElementById(`otp-${idx-1}`); if (prev) prev.focus(); } }} />
-                ))}
-              </div>
-              {otpError && <div className="mt-5 text-red-600 font-bold bg-red-50/80 px-4 py-2 rounded-xl text-[11px] uppercase tracking-wider animate-shake text-center backdrop-blur-sm">{otpError}</div>}
-            </div>
-            <button type="submit" disabled={verifying} style={globalGradientStyle} className="w-full py-5 rounded-[1.5rem] shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 active:scale-95 uppercase text-sm tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50">
-              {verifying ? <RefreshCw size={18} className="animate-spin"/> : <ShieldCheck size={18}/>} {verifying ? "PROSES..." : "KONFIRMASI MFA"}
-            </button>
-          </form>
+                  <form onSubmit={handleVerifyOtp} className="space-y-10 uppercase text-center flex flex-col items-center">
+                    <div className="flex flex-col items-center w-full">
+                      <div className="flex justify-center gap-3">
+                        {otp.map((digit, idx) => (
+                          <input key={idx} id={`otp-${idx}`} type="text" maxLength="1" className={`w-12 h-16 text-center text-3xl border-[1.5px] border-gray-300/50 rounded-2xl focus:border-cyan-500 focus:-translate-y-1 hover:-translate-y-1 outline-none transition-all duration-300 shadow-sm bg-white/70 backdrop-blur-sm text-gray-800 ${otpError ? 'border-red-400' : 'border-gray-200/50'}`} value={digit} onChange={(e) => handleOtpChange(idx, e.target.value)} onKeyDown={(e) => { if (e.key === 'Backspace' && !digit && idx > 0) { const prev = document.getElementById(`otp-${idx-1}`); if (prev) prev.focus(); } }} />
+                        ))}
+                      </div>
+                      {otpError && <div className="mt-5 text-red-600 font-bold bg-red-50/80 px-4 py-2 rounded-xl text-[11px] uppercase tracking-wider animate-shake text-center backdrop-blur-sm">{otpError}</div>}
+                    </div>
+                    <button type="submit" disabled={verifying} style={globalGradientStyle} className="w-full py-5 rounded-[1.5rem] shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 active:scale-95 uppercase text-sm tracking-[0.2em] flex items-center justify-center gap-3 disabled:opacity-50">
+                      {verifying ? <RefreshCw size={18} className="animate-spin"/> : <ShieldCheck size={18}/>} {verifying ? "PROSES..." : "KONFIRMASI MFA"}
+                    </button>
+                  </form>
+              </>
+          )}
         </div>
       </div>
     );
@@ -799,63 +855,75 @@ export default function App() {
 
   /* Main App Return */
   return (
-    <div className="min-h-screen bg-[#EDD2A4] flex overflow-hidden leading-none text-left relative uppercase font-garamond font-bold">
+    <div className="min-h-screen bg-[#EDD2A4] flex flex-col overflow-hidden leading-none text-left relative uppercase font-garamond font-bold">
       <style>{globalStyles}</style>
 
-      <aside className={`bg-[#222d32] text-white transition-all duration-300 flex-shrink-0 flex flex-col ${sidebarOpen ? 'w-80' : 'w-24'} shadow-2xl z-50 text-left uppercase relative`}>
-        <div className="h-20 flex items-center justify-center bg-[#1a2226] text-[12px] overflow-hidden uppercase tracking-[0.1em] px-6 text-center cursor-default border-b border-black/20 font-black">
-          {sidebarOpen ? 'E-KAKAPE INSPEKTUR PEMBANTU WILAYAH 1' : 'IPW'}
-        </div>
-        <div className="p-6 flex items-center gap-5 bg-[#222d32] border-b border-black/10 text-left">
-          <div className="w-12 h-12 rounded-[1.2rem] bg-gradient-to-tr from-[#3c8dbc] to-blue-300 flex items-center justify-center border-2 border-white/10 flex-shrink-0 relative overflow-hidden shadow-lg text-white hover:scale-105 transition-transform">
-            {profileImage ? <img src={profileImage} className="w-full h-full object-cover" alt="Avatar" /> : <User size={24} className="text-white" />}
+      {/* Header Atas (Logo & Profil Pengguna) */}
+      <header className={`h-20 shrink-0 bg-gradient-to-r ${loginBg.gradient} text-white flex items-center px-6 lg:px-8 justify-between shadow-md z-40 relative transition-colors duration-1000`}>
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl p-1.5 shadow-inner border border-white/30 hidden sm:flex items-center justify-center">
+              <img src={customLogo} alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
           </div>
-          {sidebarOpen && (
-            <div className="overflow-hidden text-blue-200 text-left">
-              <p className="text-[12px] truncate uppercase tracking-tighter">{currentUser?.name}</p>
-              <div className="flex items-center gap-1.5 text-[9px] text-green-400 uppercase tracking-widest mt-2"><div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div> {currentUser?.role || 'SECURE SESSION'}</div>
-            </div>
-          )}
+          <div className="flex flex-col justify-center mt-0.5">
+              <h1 className="text-xl lg:text-2xl tracking-tighter uppercase font-black drop-shadow-md leading-none">
+                  E-KAKAPE
+              </h1>
+              <span className="opacity-90 font-bold tracking-widest text-[8px] lg:text-[9px] mt-1.5 leading-none uppercase drop-shadow-sm">
+                  INSPEKTUR PEMBANTU WILAYAH I
+              </span>
+          </div>
         </div>
-        <nav className="flex-1 mt-8 space-y-2 text-left uppercase">
-          <button onClick={() => {setCurrentPage('dashboard'); setActiveCategory(null); setSelectedStaff(null);}} className={`w-full flex items-center gap-5 px-8 py-5 transition-all duration-300 border-l-4 active:scale-95 ${currentPage === 'dashboard' && !activeCategory ? 'border-cyan-400 bg-white/5 text-cyan-50 shadow-inner' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}>
-            <LayoutDashboard size={20} className="transition-transform group-hover:scale-110" /> {sidebarOpen && <span className="text-[12px] uppercase tracking-widest">DASHBOARD UTAMA</span>}
-          </button>
-          <button onClick={() => {setCurrentPage('dashboard'); setActiveCategory('KERTAS KERJA REVIU'); setSelectedStaff(null);}} className={`w-full flex items-center gap-5 px-8 py-5 transition-all duration-300 border-l-4 active:scale-95 ${currentPage === 'dashboard' && activeCategory === 'KERTAS KERJA REVIU' ? 'border-cyan-400 bg-white/5 text-cyan-50 shadow-inner' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}>
-            <FileSearch size={20} className="transition-transform group-hover:scale-110" /> {sidebarOpen && <span className="text-[12px] uppercase tracking-widest">KERTAS KERJA REVIU</span>}
-          </button>
-          <button onClick={() => {setCurrentPage('dashboard'); setActiveCategory('KERTAS KERJA EVALUASI'); setSelectedStaff(null);}} className={`w-full flex items-center gap-5 px-8 py-5 transition-all duration-300 border-l-4 active:scale-95 ${currentPage === 'dashboard' && activeCategory === 'KERTAS KERJA EVALUASI' ? 'border-cyan-400 bg-white/5 text-cyan-50 shadow-inner' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}>
-            <CheckCircle size={20} className="transition-transform group-hover:scale-110" /> {sidebarOpen && <span className="text-[12px] uppercase tracking-widest">KERTAS KERJA EVALUASI</span>}
-          </button>
-          <button onClick={() => setCurrentPage('profile')} className={`w-full flex items-center gap-5 px-8 py-5 transition-all duration-300 border-l-4 active:scale-95 ${currentPage === 'profile' ? 'border-cyan-400 bg-white/5 text-cyan-50 shadow-inner' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}>
-            <User size={20} className="transition-transform group-hover:scale-110" /> {sidebarOpen && <span className="text-[12px] uppercase tracking-widest">PROFIL</span>}
-          </button>
-          {currentUser?.role === 'ADMIN' && (
-            <button onClick={() => setCurrentPage('settings')} className={`w-full flex items-center gap-5 px-8 py-5 transition-all duration-300 border-l-4 active:scale-95 ${currentPage === 'settings' ? 'border-cyan-400 bg-white/5 text-cyan-50 shadow-inner' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}>
-              <Settings size={20} className="transition-transform group-hover:rotate-45" /> {sidebarOpen && <span className="text-[12px] uppercase tracking-widest">PENGATURAN TAMPILAN</span>}
+        
+        <div className="flex items-center gap-4 lg:gap-6 text-[10px] lg:text-[11px] uppercase tracking-widest">
+          <div className="flex items-center gap-4">
+              <div className="text-right leading-tight hidden sm:block drop-shadow-sm">
+                  <p className="font-black text-[12px] lg:text-[13px]">{currentUser?.name}</p>
+                  <p className="opacity-90 mt-1">{currentUser?.nip}</p>
+              </div>
+              <div className="w-10 h-14 lg:w-12 lg:h-16 rounded-xl overflow-hidden border-[1.5px] border-white/30 shadow-lg bg-white/20 backdrop-blur-sm flex items-center justify-center hover:scale-105 transition-transform shrink-0">
+                  {profileImage ? <img src={profileImage} className="w-full h-full object-cover" alt="Avatar" /> : <User size={24} className="text-white" />}
+              </div>
+              <button onClick={handleLogout} className="ml-1 w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center transition-all shadow-lg active:scale-95 border border-red-400/50 backdrop-blur-sm shrink-0" title="Sign Out">
+                  <LogOut size={18} className="lg:w-5 lg:h-5" />
+              </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigasi Horizontal Biru Gelap (Ala DJP) */}
+      <nav className="bg-[#1e293b] text-white flex items-center px-4 lg:px-8 shadow-md z-30 overflow-x-auto whitespace-nowrap hide-scrollbar shrink-0">
+        <button 
+            onClick={() => {setCurrentPage('dashboard'); setActiveCategory(null); setSelectedStaff(null);}} 
+            className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && !activeCategory ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+            <LayoutDashboard size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">DASHBOARD UTAMA</span>
+        </button>
+        <button 
+            onClick={() => {setCurrentPage('dashboard'); setActiveCategory('KERTAS KERJA REVIU'); setSelectedStaff(null);}} 
+            className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && activeCategory === 'KERTAS KERJA REVIU' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+            <FileSearch size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">KERTAS KERJA REVIU</span>
+        </button>
+        <button 
+            onClick={() => {setCurrentPage('dashboard'); setActiveCategory('KERTAS KERJA EVALUASI'); setSelectedStaff(null);}} 
+            className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && activeCategory === 'KERTAS KERJA EVALUASI' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+            <CheckCircle size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">KERTAS KERJA EVALUASI</span>
+        </button>
+        <button 
+            onClick={() => setCurrentPage('profile')} 
+            className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'profile' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+            <User size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">PROFIL</span>
+        </button>
+        {currentUser?.role === 'ADMIN' && (
+            <button 
+                onClick={() => setCurrentPage('settings')} 
+                className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'settings' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+                <Settings size={16} className="transition-transform duration-300 group-hover:rotate-90 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">PENGATURAN TAMPILAN</span>
             </button>
-          )}
-        </nav>
-        <button onClick={handleLogout} className="p-8 text-gray-500 hover:text-red-400 flex items-center gap-4 border-t border-white/5 transition-all duration-300 uppercase text-[11px] tracking-widest text-left hover:bg-white/5 active:scale-95"><LogOut size={18} className="transition-transform group-hover:-translate-x-1" /> {sidebarOpen && <span>SIGN OUT</span>}</button>
-      </aside>
+        )}
+      </nav>
 
-      <div className="flex-1 flex flex-col h-screen overflow-hidden text-gray-800 leading-none z-10 text-left uppercase relative bg-transparent">
-        {/* Header dengan Gradien yang Mengikuti Tema */}
-        <header className={`h-20 bg-gradient-to-r ${loginBg.gradient} text-white flex items-center px-8 justify-between shadow-md z-40 text-left transition-colors duration-1000 relative`}>
-          <div className="flex items-center gap-5 text-left">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-3 hover:bg-white/20 rounded-2xl transition-all shadow-sm bg-black/10 text-left leading-none uppercase active:scale-90 hover:shadow-md backdrop-blur-sm border border-white/10"><Menu size={24}/></button>
-            <div className="hidden sm:flex items-center bg-black/10 rounded-full px-6 py-2.5 gap-3 border border-white/10 tracking-[0.1em] shadow-inner text-left uppercase hover:bg-black/20 transition-colors duration-300 cursor-default backdrop-blur-sm"><MapPin size={14}/><span className="text-[11px] uppercase text-left drop-shadow-sm font-black">UNIT KERJA INSPEKTUR PEMBANTU WILAYAH 1</span></div>
-          </div>
-          <div className="flex items-center gap-5 text-right uppercase">
-            <div className="hidden md:flex flex-col items-end mr-2 text-white text-right leading-tight uppercase drop-shadow-sm">
-              <p className="text-[13px] uppercase tracking-tighter text-right font-black">{currentUser?.position}</p>
-              <p className="text-[10px] opacity-90 uppercase tracking-widest mt-1.5 text-right leading-none font-bold">NIP: {currentUser?.nip}</p>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shadow-lg text-white leading-none uppercase hover:scale-105 transition-transform duration-300"><ShieldCheck size={22}/></div>
-          </div>
-        </header>
-
-        <main className="p-8 md:p-12 flex-1 overflow-y-auto bg-[#EDD2A4] text-left uppercase relative">
+      {/* Konten Utama */}
+      <div className="flex-1 flex flex-col overflow-hidden text-gray-800 leading-none z-10 text-left uppercase relative bg-transparent">
+        <main className="p-6 md:p-10 lg:p-12 flex-1 overflow-y-auto bg-[#EDD2A4] text-left uppercase relative">
           {currentPage === 'dashboard' && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-1000 text-left uppercase">
               {!activeCategory ? (
@@ -898,7 +966,9 @@ export default function App() {
                     <div className="text-right leading-tight text-gray-800 uppercase bg-[#FDF5E6]/30 backdrop-blur-sm p-4 rounded-2xl border border-white/20">
                         <h3 className="text-3xl tracking-tighter uppercase text-right leading-none drop-shadow-sm">{activeCategory}</h3>
                         <p className="text-[11px] text-gray-800 uppercase tracking-widest mt-2 text-right leading-none font-bold">
-                            {selectedStaff ? `ARSIP: ${selectedStaff.name}` : 'PILIH PEGAWAI'}
+                            {currentUser?.role === 'ADMIN' 
+                                ? (selectedStaff ? `ARSIP: ${selectedStaff.name}` : 'PILIH PEGAWAI')
+                                : `ARSIP: ${currentUser?.name}`}
                         </p>
                     </div>
                   </div>
@@ -984,7 +1054,9 @@ export default function App() {
                                     <td className="px-10 py-8 text-gray-600 font-bold text-center leading-none uppercase rounded-l-3xl">{idx + 1}</td>
                                     <td className="px-10 py-8 text-left uppercase leading-none">
                                         <div className="flex items-center gap-5 text-left uppercase leading-none">
-                                            <div className="p-4 bg-white/80 rounded-2xl shadow-sm border border-[#FDF5E6]/50 group-hover:scale-110 transition duration-300 group-hover:shadow-md leading-none text-left"><FileIcon size={24} className="text-gray-600 opacity-70 uppercase leading-none"/></div>
+                                            <button onClick={() => handlePreview(file)} disabled={previewingId === file.id} className="p-4 bg-white/80 rounded-2xl shadow-sm border border-[#FDF5E6]/50 hover:bg-cyan-50 hover:border-cyan-200 group-hover:scale-110 transition duration-300 group-hover:shadow-md leading-none text-left cursor-pointer active:scale-95 disabled:opacity-50 relative" title="Klik untuk Pratinjau Dokumen">
+                                                {previewingId === file.id ? <RefreshCw size={24} className="text-cyan-600 animate-spin"/> : <FileIcon size={24} className="text-gray-600 opacity-70 group-hover:text-cyan-600 group-hover:opacity-100 uppercase leading-none transition-colors"/>}
+                                            </button>
                                             <div className="overflow-hidden text-left uppercase leading-none">
                                                <p className="tracking-tighter uppercase text-gray-800 transition-colors truncate max-w-xs text-left leading-none font-bold">{file.name}</p>
                                                <p className="text-[11px] text-gray-600 font-bold flex items-center gap-2 mt-2.5 uppercase text-left leading-none"><Clock size={12} className="uppercase leading-none"/> {file.date} | {file.size}</p>
@@ -1148,10 +1220,10 @@ export default function App() {
                 <div className="bg-[#FDF5E6]/30 backdrop-blur-md rounded-[4rem] p-16 relative overflow-hidden text-left text-gray-800 leading-none transition-all duration-500 border border-[#FDF5E6]/50">
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-16 text-left uppercase leading-none">
                         <div className="relative flex-shrink-0 text-left uppercase leading-none text-gray-200 group">
-                            <div className="w-52 h-52 bg-white/50 backdrop-blur-sm rounded-[4rem] flex items-center justify-center shadow-sm overflow-hidden relative text-gray-400 text-left leading-none transition-transform duration-500 group-hover:scale-105 border-[1.5px] border-white/50">
-                                {profileImage ? <img src={profileImage} className="w-full h-full object-cover text-left leading-none transition-transform duration-500 group-hover:scale-110" alt="Profile" /> : <User size={120} className="text-gray-500 text-left leading-none transition-transform duration-500 group-hover:scale-110" />}
+                            <div className="w-48 h-64 bg-white/50 backdrop-blur-sm rounded-3xl flex items-center justify-center shadow-sm overflow-hidden relative text-gray-400 text-left leading-none transition-transform duration-500 group-hover:scale-105 border-[1.5px] border-white/50">
+                                {profileImage ? <img src={profileImage} className="w-full h-full object-cover text-left leading-none transition-transform duration-500 group-hover:scale-110" alt="Profile" /> : <User size={80} className="text-gray-500 text-left leading-none transition-transform duration-500 group-hover:scale-110" />}
                             </div>
-                            <button onClick={() => setModal({ type: 'photo-options', data: null })} style={globalGradientStyle} className="absolute bottom-1 right-1 w-16 h-16 text-white rounded-[1.5rem] flex items-center justify-center shadow-md transform hover:scale-110 active:scale-95 transition-all leading-none uppercase z-10"><Plus size={32} className="uppercase"/></button>
+                            <button onClick={() => setModal({ type: 'photo-options', data: null })} style={globalGradientStyle} className="absolute -bottom-3 -right-3 w-14 h-14 text-white rounded-2xl flex items-center justify-center shadow-md transform hover:scale-110 active:scale-95 transition-all leading-none uppercase z-10"><Plus size={28} className="uppercase"/></button>
                         </div>
                         
                         <div className="flex-1 w-full text-left leading-tight text-gray-800 uppercase">
@@ -1318,8 +1390,8 @@ export default function App() {
 
       <Modal isOpen={modal.type === 'photo-view'} onClose={() => setModal({ type: null, data: null })} title="FOTO PROFIL">
         <div className="flex flex-col items-center py-10 uppercase text-center leading-none">
-            <div className="w-80 h-80 bg-[#FDF5E6]/50 backdrop-blur-sm rounded-[4.5rem] overflow-hidden shadow-md relative text-center group cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                {profileImage ? <img src={profileImage} className="w-full h-full object-cover text-center transition-transform duration-500 group-hover:scale-110" alt="Large" /> : <User size={160} className="w-full h-full p-20 text-gray-400 text-center transition-transform duration-500 group-hover:scale-110" />}
+            <div className="w-72 h-96 bg-[#FDF5E6]/50 backdrop-blur-sm rounded-[3rem] overflow-hidden shadow-md relative text-center group cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                {profileImage ? <img src={profileImage} className="w-full h-full object-cover text-center transition-transform duration-500 group-hover:scale-110" alt="Large" /> : <User size={120} className="w-full h-full p-16 text-gray-400 text-center transition-transform duration-500 group-hover:scale-110" />}
             </div>
             <button onClick={() => setModal({ type: null, data: null })} style={globalGradientStyle} className="mt-12 px-12 py-5 text-white text-[13px] uppercase tracking-widest rounded-2xl shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 active:scale-95 text-center">KEMBALI</button>
         </div>
