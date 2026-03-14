@@ -855,75 +855,78 @@ export default function App() {
 
   /* Main App Return */
   return (
-    <div className="min-h-screen bg-[#EDD2A4] flex flex-col overflow-hidden leading-none text-left relative uppercase font-garamond font-bold">
+    <div className="min-h-screen bg-[#EDD2A4] flex flex-col leading-none text-left relative uppercase font-garamond font-bold">
       <style>{globalStyles}</style>
 
-      {/* Header Atas (Logo & Profil Pengguna) */}
-      <header className={`h-20 shrink-0 bg-gradient-to-r ${loginBg.gradient} text-white flex items-center px-6 lg:px-8 justify-between shadow-md z-40 relative transition-colors duration-1000`}>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl p-1.5 shadow-inner border border-white/30 hidden sm:flex items-center justify-center">
-              <img src={customLogo} alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
-          </div>
-          <div className="flex flex-col justify-center mt-0.5">
-              <h1 className="text-xl lg:text-2xl tracking-tighter uppercase font-black drop-shadow-md leading-none">
-                  E-KAKAPE
-              </h1>
-              <span className="opacity-90 font-bold tracking-widest text-[8px] lg:text-[9px] mt-1.5 leading-none uppercase drop-shadow-sm">
-                  INSPEKTUR PEMBANTU WILAYAH I
-              </span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-4 lg:gap-6 text-[10px] lg:text-[11px] uppercase tracking-widest">
+      {/* Panel Atas (Freeze saat di-scroll) */}
+      <div className="sticky top-0 z-50 flex flex-col shadow-xl">
+        {/* Header Atas (Logo & Profil Pengguna) */}
+        <header className={`h-20 shrink-0 bg-gradient-to-r ${loginBg.gradient} text-white flex items-center px-6 lg:px-8 justify-between relative transition-colors duration-1000`}>
           <div className="flex items-center gap-4">
-              <div className="text-right leading-tight hidden sm:block drop-shadow-sm">
-                  <p className="font-black text-[12px] lg:text-[13px]">{currentUser?.name}</p>
-                  <p className="opacity-90 mt-1">{currentUser?.nip}</p>
-              </div>
-              <div className="w-10 h-14 lg:w-12 lg:h-16 rounded-xl overflow-hidden border-[1.5px] border-white/30 shadow-lg bg-white/20 backdrop-blur-sm flex items-center justify-center hover:scale-105 transition-transform shrink-0">
-                  {profileImage ? <img src={profileImage} className="w-full h-full object-cover" alt="Avatar" /> : <User size={24} className="text-white" />}
-              </div>
-              <button onClick={handleLogout} className="ml-1 w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center transition-all shadow-lg active:scale-95 border border-red-400/50 backdrop-blur-sm shrink-0" title="Sign Out">
-                  <LogOut size={18} className="lg:w-5 lg:h-5" />
-              </button>
+            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl p-1.5 shadow-inner border border-white/30 hidden sm:flex items-center justify-center">
+                <img src={customLogo} alt="Logo" className="w-full h-full object-contain drop-shadow-md" />
+            </div>
+            <div className="flex flex-col justify-center mt-0.5">
+                <h1 className="text-xl lg:text-2xl tracking-tighter uppercase font-black drop-shadow-md leading-none">
+                    E-KAKAPE
+                </h1>
+                <span className="opacity-90 font-bold tracking-widest text-[8px] lg:text-[9px] mt-1.5 leading-none uppercase drop-shadow-sm">
+                    INSPEKTUR PEMBANTU WILAYAH I
+                </span>
+            </div>
           </div>
-        </div>
-      </header>
+          
+          <div className="flex items-center gap-4 lg:gap-6 text-[10px] lg:text-[11px] uppercase tracking-widest">
+            <div className="flex items-center gap-4">
+                <div className="text-right leading-tight hidden sm:block drop-shadow-sm">
+                    <p className="font-black text-[12px] lg:text-[13px]">{currentUser?.name}</p>
+                    <p className="opacity-90 mt-1">{currentUser?.nip}</p>
+                </div>
+                <div className="w-10 h-14 lg:w-12 lg:h-16 rounded-xl overflow-hidden border-[1.5px] border-white/30 shadow-lg bg-white/20 backdrop-blur-sm flex items-center justify-center hover:scale-105 transition-transform shrink-0">
+                    {profileImage ? <img src={profileImage} className="w-full h-full object-cover" alt="Avatar" /> : <User size={24} className="text-white" />}
+                </div>
+                <button onClick={handleLogout} className="ml-1 w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-red-500/90 hover:bg-red-600 text-white flex items-center justify-center transition-all shadow-lg active:scale-95 border border-red-400/50 backdrop-blur-sm shrink-0" title="Sign Out">
+                    <LogOut size={18} className="lg:w-5 lg:h-5" />
+                </button>
+            </div>
+          </div>
+        </header>
 
-      {/* Navigasi Horizontal Biru Gelap (Ala DJP) */}
-      <nav className="bg-[#1e293b] text-white flex items-center px-4 lg:px-8 shadow-md z-30 overflow-x-auto whitespace-nowrap hide-scrollbar shrink-0">
-        <button 
-            onClick={() => {setCurrentPage('dashboard'); setActiveCategory(null); setSelectedStaff(null);}} 
-            className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && !activeCategory ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
-            <LayoutDashboard size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">DASHBOARD UTAMA</span>
-        </button>
-        <button 
-            onClick={() => {setCurrentPage('dashboard'); setActiveCategory('KERTAS KERJA REVIU'); setSelectedStaff(null);}} 
-            className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && activeCategory === 'KERTAS KERJA REVIU' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
-            <FileSearch size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">KERTAS KERJA REVIU</span>
-        </button>
-        <button 
-            onClick={() => {setCurrentPage('dashboard'); setActiveCategory('KERTAS KERJA EVALUASI'); setSelectedStaff(null);}} 
-            className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && activeCategory === 'KERTAS KERJA EVALUASI' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
-            <CheckCircle size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">KERTAS KERJA EVALUASI</span>
-        </button>
-        <button 
-            onClick={() => setCurrentPage('profile')} 
-            className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'profile' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
-            <User size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">PROFIL</span>
-        </button>
-        {currentUser?.role === 'ADMIN' && (
-            <button 
-                onClick={() => setCurrentPage('settings')} 
-                className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'settings' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
-                <Settings size={16} className="transition-transform duration-300 group-hover:rotate-90 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">PENGATURAN TAMPILAN</span>
-            </button>
-        )}
-      </nav>
+        {/* Navigasi Horizontal Biru Gelap (Ala DJP) */}
+        <nav className="bg-[#1e293b] text-white flex items-center px-4 lg:px-8 overflow-x-auto whitespace-nowrap hide-scrollbar shrink-0">
+          <button 
+              onClick={() => {setCurrentPage('dashboard'); setActiveCategory(null); setSelectedStaff(null);}} 
+              className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && !activeCategory ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+              <LayoutDashboard size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">DASHBOARD UTAMA</span>
+          </button>
+          <button 
+              onClick={() => {setCurrentPage('dashboard'); setActiveCategory('KERTAS KERJA REVIU'); setSelectedStaff(null);}} 
+              className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && activeCategory === 'KERTAS KERJA REVIU' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+              <FileSearch size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">KERTAS KERJA REVIU</span>
+          </button>
+          <button 
+              onClick={() => {setCurrentPage('dashboard'); setActiveCategory('KERTAS KERJA EVALUASI'); setSelectedStaff(null);}} 
+              className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'dashboard' && activeCategory === 'KERTAS KERJA EVALUASI' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+              <CheckCircle size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">KERTAS KERJA EVALUASI</span>
+          </button>
+          <button 
+              onClick={() => setCurrentPage('profile')} 
+              className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'profile' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+              <User size={16} className="transition-transform duration-300 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">PROFIL</span>
+          </button>
+          {currentUser?.role === 'ADMIN' && (
+              <button 
+                  onClick={() => setCurrentPage('settings')} 
+                  className={`px-5 py-4 flex items-center gap-2 transition-all duration-300 border-b-[3px] hover:bg-white/5 hover:-translate-y-0.5 active:scale-95 group ${currentPage === 'settings' ? 'border-cyan-400 text-cyan-400 bg-white/5' : 'border-transparent text-gray-300 hover:text-white'}`}>
+                  <Settings size={16} className="transition-transform duration-300 group-hover:rotate-90 group-hover:scale-110" /> <span className="text-[11px] uppercase tracking-widest font-bold mt-0.5 transition-colors">PENGATURAN TAMPILAN</span>
+              </button>
+          )}
+        </nav>
+      </div>
 
       {/* Konten Utama */}
-      <div className="flex-1 flex flex-col overflow-hidden text-gray-800 leading-none z-10 text-left uppercase relative bg-transparent">
-        <main className="p-6 md:p-10 lg:p-12 flex-1 overflow-y-auto bg-[#EDD2A4] text-left uppercase relative">
+      <div className="flex-1 flex flex-col text-gray-800 leading-none z-10 text-left uppercase relative bg-transparent">
+        <main className="p-6 md:p-10 lg:p-12 flex-1 bg-[#EDD2A4] text-left uppercase relative">
           {currentPage === 'dashboard' && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-1000 text-left uppercase">
               {!activeCategory ? (
@@ -956,6 +959,64 @@ export default function App() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Panel Riwayat Upload (Khusus Admin) */}
+                  {currentUser?.role === 'ADMIN' && (
+                    <div className="bg-[#FDF5E6]/30 backdrop-blur-md rounded-[3.5rem] shadow-lg overflow-hidden border border-[#FDF5E6]/50 mb-12 transition-all duration-500 hover:shadow-xl">
+                        <div className="p-8 lg:p-10 border-b border-[#FDF5E6]/50 flex items-center gap-5">
+                            <div className="p-4 rounded-3xl text-white shadow-xl shadow-blue-100 uppercase leading-none cursor-pointer transition-all duration-300 transform hover:scale-110 hover:-translate-y-1 active:scale-95 group" style={globalGradientStyle}>
+                                <Clock size={24} className="transition-transform duration-500 group-hover:rotate-[360deg]" />
+                            </div>
+                            <div>
+                                <h4 className="uppercase tracking-tighter text-2xl leading-none text-gray-800 drop-shadow-sm">RIWAYAT UNGGAHAN PEGAWAI</h4>
+                                <p className="text-[11px] text-gray-600 font-bold uppercase tracking-widest mt-2">AKTIVITAS DOKUMEN TERBARU DARI SELURUH PEGAWAI</p>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto p-6">
+                            <table className="w-full text-left text-sm uppercase text-gray-800 leading-none border-separate border-spacing-y-2">
+                                <thead className="text-gray-700 font-bold uppercase text-[11px] tracking-widest">
+                                    <tr>
+                                        <th className="px-8 py-5">NAMA PEGAWAI</th>
+                                        <th className="px-8 py-5">NAMA BERKAS</th>
+                                        <th className="px-8 py-5">TANGGAL</th>
+                                        <th className="px-8 py-5 text-center">JENIS KERTAS KERJA</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {files.slice(0, 15).map((file) => {
+                                        const staff = INITIAL_USER_DATABASE.find(u => u.nip === file.ownerNip);
+                                        return (
+                                            <tr key={file.id} className="bg-white/40 hover:bg-white/80 transition-colors duration-300 shadow-sm rounded-3xl group">
+                                                <td className="px-8 py-5 rounded-l-3xl font-bold text-gray-800 flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 overflow-hidden shrink-0 shadow-inner">
+                                                        <User size={14} />
+                                                    </div>
+                                                    <span className="truncate max-w-[200px]">{staff ? staff.name : 'TIDAK DIKETAHUI'}</span>
+                                                </td>
+                                                <td className="px-8 py-5">
+                                                    <span className="truncate max-w-[250px] inline-block" title={file.name}>{file.name}</span>
+                                                </td>
+                                                <td className="px-8 py-5 text-gray-600 font-bold tracking-widest text-[11px]">
+                                                    {file.date}
+                                                </td>
+                                                <td className="px-8 py-5 rounded-r-3xl text-center">
+                                                    <span className="bg-white/80 border border-gray-200 px-4 py-2 rounded-xl text-[10px] tracking-widest font-bold text-gray-700 shadow-sm inline-block">
+                                                        {file.category}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {files.length === 0 && (
+                                        <tr>
+                                            <td colSpan="4" className="text-center py-16 text-gray-500 font-bold tracking-[0.3em] uppercase">BELUM ADA RIWAYAT UNGGAHAN DOKUMEN</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="animate-in zoom-in duration-500 text-left uppercase">
