@@ -13,7 +13,7 @@ import {
   ShieldAlert, UserCheck, Users, Mail, Image as ImageIconUI
 } from 'lucide-react';
 
-/* Menambahkan Global Style untuk Font Garamond */
+/* Menambahkan Global Style untuk Font Garamond & Animasi 3D Taiganja */
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=EB+Garamond:wght@400..800&display=swap');
 
@@ -24,18 +24,116 @@ const globalStyles = `
   /* Menghilangkan scrollbar pada menu navigasi untuk tampilan rapi */
   .hide-scrollbar::-webkit-scrollbar { display: none; }
   .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* --- 3D SLIDER STYLES (TAIGANJA FINAL EDITION) --- */
+  .slider-3d-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      perspective: 2000px; 
+      transform-style: preserve-3d;
+      overflow: hidden;
+      z-index: 0;
+  }
+  
+  .slider-3d {
+      position: absolute;
+      width: 151px; 
+      height: 227px;
+      top: 40%; 
+      left: 50%;
+      transform-style: preserve-3d;
+      animation: autoRun3D 60s linear infinite;
+      pointer-events: none; 
+  }
+  
+  @keyframes autoRun3D {
+      from { transform: translate(-50%, -50%) rotateX(-25deg) rotateY(0deg); }
+      to { transform: translate(-50%, -50%) rotateX(-25deg) rotateY(360deg); }
+  }
+  
+  .slider-3d .item {
+      position: absolute;
+      inset: 0 0 0 0;
+      transform-style: preserve-3d;
+      transform: rotateY(calc((var(--position) - 1) * (360 / var(--quantity)) * 1deg)) translateZ(500px); 
+      pointer-events: none;
+  }
+  
+  .slider-3d .item img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain; 
+      background-color: transparent; 
+      border: none;
+      padding: 0;
+      mix-blend-mode: multiply;
+      filter: contrast(1.5) brightness(1.1) drop-shadow(0 5px 15px rgba(0,0,0,0.2));
+  }
+  
+  .logo-3d-center {
+      position: absolute;
+      top: 70%;
+      left: 50%;
+      transform: translate(-50%, -50%); 
+      width: 350px; 
+      height: 350px; 
+      max-width: 65vw;
+      max-height: 65vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: none;
+      transform-style: preserve-3d;
+      animation: counterRotate 60s linear infinite;
+  }
+
+  @keyframes counterRotate {
+      from { transform: translate(-50%, -50%) rotateY(0deg); }
+      to { transform: translate(-50%, -50%) rotateY(-360deg); }
+  }
+  
+  .logo-3d-center-img {
+      width: 100%;
+      height: 100%;
+      background-image: url('https://raw.githubusercontent.com/wimwijaya/e-kakape/main/LOGO.png'); 
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      filter: drop-shadow(0 15px 25px rgba(0,0,0,0.25));
+  }
+  
+  @media screen and (max-width: 1023px) {
+      .slider-3d { width: 120px; height: 180px; top: 42%; }
+      .slider-3d .item { transform: rotateY(calc((var(--position) - 1) * (360 / var(--quantity)) * 1deg)) translateZ(350px); }
+      .logo-3d-center { width: 250px; height: 250px; top: 65%; }
+  }
 `;
 
 /* --- Konfigurasi Keamanan (Standard TOTP) --- */
-const TOTP_SECRET_BASE32 = "JBSWY3DPEHPK3PXP"; 
 const TOTP_ISSUER = "IPW1_SIGI";
+
+// Fungsi untuk menghasilkan secret Base32 unik berdasarkan NIP user
+const getUserSecret = (nip) => {
+   const combined = nip + "IPW1SIGI" + nip;
+   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+   let secret = '';
+   for(let i = 0; i < 16; i++) {
+       let charCode = combined.charCodeAt(i % combined.length) + (i * 17);
+       secret += alphabet[charCode % 32];
+   }
+   return secret;
+};
 
 /* ======================================================================
    GAMBAR DARI GOOGLE DRIVE
 ====================================================================== */
 const G_DRIVE_BACKGROUND_ID = "1BNjp5Oo14OankSDLyRZodIJtJa768UPS";
 const G_DRIVE_LOGO_ID = "1seDzz8AbTL5HwOo9XXvZI0nbh4KXpcw9"; 
-const getGDriveUrl = (id) => id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1920` : null;
+const getGDriveUrl = (id) => id ? `https://drive.google.com/uc?export=view&id=${id}` : null;
 
 /* --- Database Personel (Whitelist NIP yang diperbolehkan masuk) --- */
 const INITIAL_USER_DATABASE = [
@@ -63,10 +161,6 @@ const YEARS = ["SEMUA TAHUN", "2026", "2025", "2024", "2023", "2022", "2021", "2
 /* ======================================================================
    FIREBASE INITIALIZATION
 ====================================================================== */
-// Ganti bagian di bawah ini dengan konfigurasi dari Firebase Console Anda
-// CATATAN PENTING: Saat aplikasi ini Anda pindahkan ke VS Code untuk di-deploy ke Vercel, 
-// pastikan untuk mengganti string "ISI_DENGAN_..." dengan format import.meta.env.VITE_... 
-// seperti yang dijelaskan pada dokumen PANDUAN_DEPLOY.md.
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
   apiKey: "AIzaSyBpTfKbFy-wyG4eD3mjMjCYPwTGjdSLO_8",
   authDomain: "e-kakape-irban1.firebaseapp.com",
@@ -76,7 +170,6 @@ const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__f
   appId: "1:564534080781:web:04d85f0f0e6d75dc352c44"
 };
 
-// Inisialisasi Firebase secara aman
 let app, auth, db;
 try {
   app = initializeApp(firebaseConfig);
@@ -90,35 +183,48 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'e-arsip-sigi';
 
 /* --- Helper: TOTP Logic --- */
 const base32ToBuf = (base32) => {
-   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-   let bits = 0, value = 0, index = 0;
-   const output = new Uint8Array((base32.length * 5 / 8) | 0);
-   for (let i = 0; i < base32.length; i++) {
-       const charIdx = alphabet.indexOf(base32[i].toUpperCase());
-       if (charIdx === -1) continue;
-       value = (value << 5) | charIdx;
-       bits += 5;
-       if (bits >= 8) {
-           output[index++] = (value >> (bits - 8)) & 255;
-           bits -= 8;
-       }
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    const bytes = [];
+    let bits = 0, value = 0;
+    for (let i = 0; i < base32.length; i++) {
+        const charIdx = alphabet.indexOf(base32[i].toUpperCase());
+        if (charIdx === -1) continue;
+        value = (value << 5) | charIdx;
+        bits += 5;
+        if (bits >= 8) {
+            bytes.push((value >>> (bits - 8)) & 255);
+            bits -= 8;
+        }
     }
-   return output;
+    return new Uint8Array(bytes);
 };
 
-const generateTOTP = async (secretBase32) => {
-   const key = base32ToBuf(secretBase32);
-   const epoch = Math.round(new Date().getTime() / 1000.0);
-   const time = Math.floor(epoch / 30);
-   const timeBuf = new ArrayBuffer(8);
-   const view = new DataView(timeBuf);
-   view.setUint32(4, time);
-   const cryptoKey = await window.crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
-   const hmac = await window.crypto.subtle.sign("HMAC", cryptoKey, timeBuf);
-   const hmacRes = new Uint8Array(hmac);
-   const offset = hmacRes[hmacRes.length - 1] & 0xf;
-   const code = ((hmacRes[offset] & 0x7f) << 24) | ((hmacRes[offset + 1] & 0xff) << 16) | ((hmacRes[offset + 2] & 0xff) << 8) | (hmacRes[offset + 3] & 0xff);
-   return (code % 1000000).toString().padStart(6, '0');
+const generateTOTP = async (secretBase32, windowOffset = 0) => {
+   try {
+       const key = base32ToBuf(secretBase32);
+       // Wajib Math.floor agar sinkron sempurna dengan standar Unix Timestamp
+       const epoch = Math.floor(Date.now() / 1000); 
+       const time = Math.floor(epoch / 30) + windowOffset;
+       
+       const timeBuf = new ArrayBuffer(8);
+       const view = new DataView(timeBuf);
+       view.setUint32(4, time, false); // Harus false untuk memastikan format Big-Endian
+       
+       const cryptoKey = await window.crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
+       const hmac = await window.crypto.subtle.sign("HMAC", cryptoKey, timeBuf);
+       const hmacRes = new Uint8Array(hmac);
+       
+       const offset = hmacRes[hmacRes.length - 1] & 0xf;
+       const code = ((hmacRes[offset] & 0x7f) << 24) | 
+                    ((hmacRes[offset + 1] & 0xff) << 16) | 
+                    ((hmacRes[offset + 2] & 0xff) << 8) | 
+                    (hmacRes[offset + 3] & 0xff);
+                    
+       return (code % 1000000).toString().padStart(6, '0');
+   } catch (error) {
+       console.error("Kesalahan saat generate TOTP:", error);
+       return null;
+   }
 };
 
 const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-lg" }) => {
@@ -144,7 +250,7 @@ const LOGIN_BGS = [
 ];
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('login'); 
+  const [currentPage, setCurrentPage] = useState('landing'); 
   const [loginStep, setLoginStep] = useState('select'); 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -203,7 +309,7 @@ export default function App() {
   
   /* State Logo Custom */
   const [customLogo, setCustomLogo] = useState(() => {
-    const defaultLogo = getGDriveUrl(G_DRIVE_LOGO_ID) || "https://img.freepik.com/premium-vector/isometric-filing-cabinet-folders-boxes-illustration_1284-53906.jpg";
+    const defaultLogo = "https://raw.githubusercontent.com/wimwijaya/e-kakape/main/LOGO.png";
     return localStorage.getItem('eArsip_customLogo') || defaultLogo;
   });
   const [logoSize, setLogoSize] = useState(() => {
@@ -278,12 +384,20 @@ export default function App() {
   const globalGradientStyle = { background: 'linear-gradient(98.7deg, rgba(34,175,245,1) 2.8%, rgba(98,247,151,1) 97.8%)', color: 'white', border: 'none' };
   const panelGradientStyle = { background: 'linear-gradient(90deg, #FBBF24 0%, #F97316 100%)', color: 'white', border: 'none' };
   
-  /* STATS CONFIGURATION WITH GRADIENTS */
+  /* STATS CONFIGURATION WITH GRADIENTS - DIPERBARUI UNTUK FILTER BERDASARKAN USER */
   const counts = useMemo(() => {
     const stats = {};
-    TABS.forEach(tab => { if (tab !== "SEMUA DATA") stats[tab] = files.filter(f => f.category === tab).length; });
+    TABS.forEach(tab => { 
+      if (tab !== "SEMUA DATA") {
+        stats[tab] = files.filter(f => {
+          const isMatchCategory = f.category === tab;
+          const isMatchOwner = currentUser?.role === 'ADMIN' ? true : f.ownerNip === currentUser?.nip;
+          return isMatchCategory && isMatchOwner;
+        }).length;
+      }
+    });
     return stats;
-  }, [files]);
+  }, [files, currentUser]);
 
   const STATS_CONFIG = [
     { label: "KERTAS KERJA REVIU", count: counts["KERTAS KERJA REVIU"] || 0, color: "text-white", style: panelGradientStyle, icon: FileSearch },
@@ -313,8 +427,10 @@ export default function App() {
   function getQrData() {
     if (!currentUser) return "";
     const roleLabel = currentUser.role === 'ADMIN' ? 'ADMIN' : 'USER';
-    const label = `${TOTP_ISSUER}_${roleLabel}:${currentUser.nip}`;
-    return `otpauth://totp/${encodeURIComponent(label)}?secret=${TOTP_SECRET_BASE32}&issuer=${encodeURIComponent(TOTP_ISSUER)}`;
+    // Format Label Standar Google Auth:  Issuer:AccountName
+    const label = `${TOTP_ISSUER}:${roleLabel}_${currentUser.nip}`;
+    const userSecret = getUserSecret(currentUser.nip);
+    return `otpauth://totp/${encodeURIComponent(label)}?secret=${userSecret}&issuer=${encodeURIComponent(TOTP_ISSUER)}`;
   }
 
   function handleUploadClick() {
@@ -335,12 +451,10 @@ export default function App() {
       }
       
       if (!url) {
-        // Fallback jika tidak ada data asli
         const dummyContent = `DATA SIMULASI: ${file.name}\nKATEGORI: ${file.category}\nSURAT TUGAS: ${file.stNumber}\nTAHUN: ${file.year}`;
         const blob = new Blob([dummyContent], { type: 'text/plain' });
         url = URL.createObjectURL(blob);
       } else if (url.startsWith('data:')) {
-        // Konversi Data URI (Base64) ke Blob agar aman dibuka di tab baru (mencegah blokir browser)
         const arr = url.split(',');
         const mimeMatch = arr[0].match(/:(.*?);/);
         if (mimeMatch) {
@@ -488,9 +602,19 @@ export default function App() {
     }
 
     try {
-        const correct = await generateTOTP(TOTP_SECRET_BASE32);
+        const userSecret = getUserSecret(currentUser.nip);
         
-        if (codeString === correct) {
+        // Cek kode OTP dengan toleransi yang sangat longgar (±60 detik / 5 jendela)
+        // Hal ini sangat membantu jika jam PC dengan Jam Server Google tidak sinkron.
+        const validCodes = await Promise.all([
+            generateTOTP(userSecret, 0),
+            generateTOTP(userSecret, -1),
+            generateTOTP(userSecret, 1),
+            generateTOTP(userSecret, -2),
+            generateTOTP(userSecret, 2)
+        ]);
+        
+        if (validCodes.includes(codeString)) {
             if (!isLinked && firebaseUser) {
                 const linkageRef = doc(db, 'artifacts', appId, 'public', 'data', 'linkages', currentUser.nip);
                 const snap = await getDoc(linkageRef);
@@ -537,12 +661,26 @@ export default function App() {
     }
   };
 
+  /* FUNGSI LOGOUT YANG DIPERBARUI - 100% KEMBALI KE SLIDER (LANDING PAGE) */
   const handleLogout = () => {
-    setCurrentUser(null); setNip(''); setPassword(''); setShowPassword(false);
-    setOtp(['','','','','','']); setOtpError('');
-    setActiveCategory(null); setSelectedStaff(null); setLoginStep('select');
-    setLinkEmail(''); setLinkageInfo(null);
-    setCurrentPage('login');
+    // 1. Kosongkan semua data user & sesi
+    setCurrentUser(null); 
+    setNip(''); 
+    setPassword(''); 
+    setShowPassword(false);
+    setOtp(['','','','','','']); 
+    setOtpError('');
+    setActiveCategory(null); 
+    setSelectedStaff(null); 
+    setLoginStep('select');
+    setLinkEmail(''); 
+    setLinkageInfo(null);
+    
+    // 2. Paksa kembali ke halaman "landing"
+    setCurrentPage('landing');
+    
+    // 3. Scroll layar kembali ke paling atas
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handlePhotoUpload = (e) => {
@@ -653,7 +791,7 @@ export default function App() {
   };
 
   const handleResetLogo = () => {
-    const defaultLogo = getGDriveUrl(G_DRIVE_LOGO_ID) || "https://img.freepik.com/premium-vector/isometric-filing-cabinet-folders-boxes-illustration_1284-53906.jpg";
+    const defaultLogo = "https://raw.githubusercontent.com/wimwijaya/e-kakape/main/LOGO.png";
     setCustomLogo(defaultLogo);
     setLogoSize(100); 
     if (logoInputRef.current) logoInputRef.current.value = '';
@@ -661,6 +799,43 @@ export default function App() {
   };
 
   /* --- RENDER BLOCKS --- */
+
+  if (currentPage === 'landing') {
+    return (
+      <div className="min-h-screen relative overflow-hidden font-garamond font-bold" style={{
+          backgroundColor: '#D2D2D2',
+          backgroundImage: `repeating-linear-gradient(to right, transparent 0 100px, #25283b22 100px 101px), repeating-linear-gradient(to bottom, transparent 0 100px, #25283b22 100px 101px)`
+      }}>
+          <style>{globalStyles}</style>
+          
+          {/* Animasi Slider 3D Taiganja */}
+          <div className="slider-3d-container animate-in fade-in zoom-in duration-1000">
+              <div className="slider-3d" style={{ "--quantity": 17 }}>
+                  {/* Logo dipindahkan KEDALAM slider agar berbagi ruang 3D yang tepat, lalu rotasinya dibalik agar tetap menghadap depan */}
+                  <div className="logo-3d-center">
+                      <div className="logo-3d-center-img"></div>
+                  </div>
+                  
+                  {[...Array(17)].map((_, i) => (
+                      <div className="item" style={{ "--position": i + 1 }} key={i}>
+                          <img src="https://raw.githubusercontent.com/wimwijaya/e-kakape/main/logo%20taiganja.png" alt="Taiganja" />
+                      </div>
+                  ))}
+              </div>
+          </div>
+
+          {/* Tombol Lanjutkan */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-bottom-8 fade-in duration-1000 delay-500 w-full px-6 flex justify-center">
+              <button 
+                  onClick={() => setCurrentPage('login')} 
+                  className="text-gray-800 hover:text-black transition-all duration-300 transform hover:scale-110 active:scale-95 tracking-[0.4em] uppercase text-[12px] md:text-[14px] font-black flex items-center gap-2 group drop-shadow-md"
+              >
+                  LANJUTKAN <ChevronRight size={18} className="transition-transform duration-300 group-hover:translate-x-2" />
+              </button>
+          </div>
+      </div>
+    );
+  }
 
   if (currentPage === 'login') {
     return (
@@ -707,6 +882,7 @@ export default function App() {
           <div className="w-full md:w-[55%] p-10 md:px-14 md:py-12 flex flex-col justify-center text-gray-800 uppercase bg-transparent relative backdrop-blur-sm transition-all duration-300">
             {loginStep === 'select' ? (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-500 w-full h-full flex flex-col justify-center">
+                    <button onClick={() => setCurrentPage('landing')} className="mb-6 flex items-center gap-2 text-[10px] text-cyan-700 uppercase tracking-widest hover:translate-x-[-4px] active:scale-95 transition-all leading-none w-fit"><ArrowLeft size={14}/> KEMBALI</button>
                     <div className="mb-8 text-center mt-2">
                         <h2 className="text-[22px] tracking-tighter uppercase leading-none text-gray-900 drop-shadow-sm">SELAMAT DATANG</h2>
                         <p className="text-gray-600 text-[8px] uppercase tracking-[0.25em] mt-2.5 leading-none">PILIH MODE AKSES SISTEM</p>
@@ -728,14 +904,14 @@ export default function App() {
                         </button>
                     </div>
                     <div className="mt-12 flex justify-center">
-                      <div className="border-t border-gray-300/50 w-full pt-6 text-center">
+                      <div className="w-full pt-6 text-center">
                         <p className="text-[10px] font-black uppercase tracking-widest leading-none text-gray-700 drop-shadow-sm">INSPEKTUR PEMBANTU WILAYAH 1</p>
                       </div>
                     </div>
                 </div>
             ) : (
                 <div className="animate-in fade-in slide-in-from-left-4 duration-500 w-full h-full flex flex-col justify-center">
-                    <button onClick={() => { setLoginStep('select'); setLoginError(''); setNip(''); setPassword(''); setShowPassword(false); }} className="mb-6 flex items-center gap-2 text-[10px] text-cyan-700 uppercase tracking-widest hover:translate-x-[-4px] active:scale-95 transition-all leading-none"><ArrowLeft size={14}/> Kembali</button>
+                    <button onClick={() => { setLoginStep('select'); setLoginError(''); setNip(''); setPassword(''); setShowPassword(false); }} className="mb-6 flex items-center gap-2 text-[10px] text-cyan-700 uppercase tracking-widest hover:translate-x-[-4px] active:scale-95 transition-all leading-none w-fit"><ArrowLeft size={14}/> KEMBALI</button>
                     <div className="mb-6 text-center text-gray-800">
                         <h2 className="text-[22px] tracking-tighter uppercase leading-none text-gray-900 drop-shadow-sm">{loginStep === 'admin-form' ? 'Admin Login' : 'User Login'}</h2>
                         <p className="text-gray-600 text-[8px] uppercase tracking-[0.25em] mt-2.5 leading-none">Masukkan Kredensial Akses</p>
@@ -758,7 +934,7 @@ export default function App() {
                         <button type="submit" style={globalGradientStyle} className="w-full py-4 rounded-[1rem] shadow-md hover:shadow-xl transform hover:-translate-y-0.5 active:scale-95 transition-all duration-300 text-[11px] tracking-[0.2em] uppercase mt-2 leading-none backdrop-blur-sm font-bold">Masuk</button>
                     </form>
                     <div className="mt-8 flex justify-center">
-                      <div className="border-t border-gray-300/50 w-full pt-6 text-center">
+                      <div className="w-full pt-6 text-center">
                         <p className="text-[10px] font-black uppercase tracking-widest leading-none text-gray-700 drop-shadow-sm">INSPEKTUR PEMBANTU WILAYAH 1</p>
                       </div>
                     </div>
@@ -784,7 +960,7 @@ export default function App() {
         </div>
 
         {/* Panel Cream Transparan 30% */}
-        <div className="max-w-md w-full bg-[#FDF5E6]/30 backdrop-blur-md p-16 rounded-[4rem] shadow-[0_30px_60px_rgba(0,0,0,0.12)] border border-white/30 text-center z-10 uppercase transition-all duration-500 hover:scale-[1.01] relative overflow-hidden">
+        <div className="max-w-md w-full bg-[#FDF5E6]/30 backdrop-blur-md p-16 rounded-[4rem] shadow-[0_30px_60px_rgba(0,0,0,0.12)] border border-white/30 text-center z-10 uppercase transition-all duration-500 hover:scale-[1.01] relative overflow-hidden flex flex-col items-center">
           
           {showWelcome ? (
               <div className="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500 py-8 min-h-[300px]">
@@ -802,7 +978,7 @@ export default function App() {
                   <h2 className="text-2xl text-gray-900 mb-2 tracking-tighter uppercase leading-none text-center drop-shadow-sm">Verifikasi Keamanan</h2>
                   
                   {isLinked ? (
-                    <div className="my-10 animate-in fade-in zoom-in duration-500">
+                    <div className="my-10 animate-in fade-in zoom-in duration-500 w-full">
                         <p className="text-gray-800 font-black text-xl tracking-widest mb-1 drop-shadow-sm bg-white/50 inline-block px-6 py-2 rounded-full border border-white/50 shadow-sm">e-Kakape Irban 1</p>
                         <div className="bg-green-50/90 backdrop-blur-md border-[1.5px] border-green-200/50 p-6 rounded-3xl shadow-sm text-center mt-6">
                             <div className="flex items-center justify-center gap-2 text-green-700">
@@ -815,7 +991,7 @@ export default function App() {
                         </div>
                     </div>
                   ) : (
-                    <div className="my-10 animate-in fade-in duration-500">
+                    <div className="my-10 animate-in fade-in duration-500 w-full">
                          <div className="p-5 bg-white/50 backdrop-blur-sm border-[1.5px] border-white/50 rounded-[3rem] inline-block shadow-sm hover:border-gray-200 transition-colors">
                              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(getQrData())}`} alt="QR" className="w-48 h-48 rounded-2xl mix-blend-multiply" />
                          </div>
@@ -833,7 +1009,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <form onSubmit={handleVerifyOtp} className="space-y-10 uppercase text-center flex flex-col items-center">
+                  <form onSubmit={handleVerifyOtp} className="space-y-10 uppercase text-center flex flex-col items-center w-full">
                     <div className="flex flex-col items-center w-full">
                       <div className="flex justify-center gap-3">
                         {otp.map((digit, idx) => (
@@ -846,6 +1022,11 @@ export default function App() {
                       {verifying ? <RefreshCw size={18} className="animate-spin"/> : <ShieldCheck size={18}/>} {verifying ? "PROSES..." : "KONFIRMASI MFA"}
                     </button>
                   </form>
+                  
+                  {/* TOMBOL BATALKAN & KEMBALI DI HALAMAN OTP */}
+                  <button type="button" onClick={handleLogout} className="mt-8 text-[10px] text-gray-500 hover:text-red-500 uppercase tracking-[0.2em] font-black transition-colors flex items-center justify-center gap-2 w-full active:scale-95">
+                      <ArrowLeft size={14}/> BATALKAN & KEMBALI KE AWAL
+                  </button>
               </>
           )}
         </div>
@@ -1426,12 +1607,12 @@ export default function App() {
       </Modal>
 
       <Modal isOpen={modal.type === 'detail'} onClose={() => setModal({ type: null, data: null })} title="METADATA DOKUMEN">
-        <div className="space-y-10 py-4 uppercase text-gray-800 text-left leading-none">
-            <div className="p-10 bg-white/40 backdrop-blur-sm rounded-[3rem] border-[3px] border-dashed border-[#FDF5E6]/60 flex items-center gap-10 shadow-sm hover:shadow-md transition-shadow text-left">
-                <div className="p-6 bg-[#FDF5E6]/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-[#FDF5E6]/50 text-gray-600 text-left hover:scale-105 transition-transform"><FileIcon size={56} className="text-left"/></div>
-                <div className="overflow-hidden uppercase leading-none text-left text-gray-800">
-                    <p className="text-3xl text-gray-900 leading-tight mb-4 tracking-tighter uppercase truncate text-left drop-shadow-sm">{modal.data?.name}</p>
-                    <span className="text-white px-5 py-2.5 rounded-2xl text-[13px] uppercase tracking-widest shadow-sm text-left" style={globalGradientStyle}>{modal.data?.category}</span>
+        <div className="space-y-10 py-4 uppercase text-gray-800 text-left">
+            <div className="p-8 md:p-10 bg-white/40 backdrop-blur-sm rounded-[3rem] border-[3px] border-dashed border-[#FDF5E6]/60 flex items-center gap-6 md:gap-10 shadow-sm hover:shadow-md transition-shadow text-left">
+                <div className="p-5 md:p-6 bg-[#FDF5E6]/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-[#FDF5E6]/50 text-gray-600 text-left hover:scale-105 transition-transform shrink-0"><FileIcon size={48} className="text-left"/></div>
+                <div className="overflow-hidden uppercase text-left text-gray-800 flex-1">
+                    <p className="text-lg md:text-xl text-gray-900 leading-tight mb-3 tracking-tighter uppercase truncate w-full text-left drop-shadow-sm font-black" title={modal.data?.name}>{modal.data?.name}</p>
+                    <span className="inline-block text-white px-5 py-2 rounded-xl text-[10px] md:text-[11px] uppercase tracking-widest shadow-sm text-center leading-normal font-bold" style={globalGradientStyle}>{modal.data?.category}</span>
                 </div>
             </div>
 
