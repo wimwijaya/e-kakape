@@ -133,7 +133,9 @@ const getUserSecret = (nip) => {
 ====================================================================== */
 const G_DRIVE_BACKGROUND_ID = "1BNjp5Oo14OankSDLyRZodIJtJa768UPS";
 const G_DRIVE_LOGO_ID = "1seDzz8AbTL5HwOo9XXvZI0nbh4KXpcw9"; 
-const getGDriveUrl = (id) => id ? `https://drive.google.com/uc?export=view&id=${id}` : null;
+
+// FIX: Menggunakan format URL Thumbnail untuk menghindari blokir CORS Google Drive
+const getGDriveUrl = (id) => id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : null;
 
 /* --- Database Personel (Whitelist NIP yang diperbolehkan masuk) --- */
 const INITIAL_USER_DATABASE = [
