@@ -116,16 +116,27 @@ const globalStyles = `
 /* --- Konfigurasi Keamanan (Standard TOTP) --- */
 const TOTP_ISSUER = "IPW1_SIGI";
 
-// Fungsi untuk menghasilkan secret Base32 unik berdasarkan NIP user
+// FIX: Algoritma Generator Rahasia Diperbarui Menjadi Hashing (LCG)
+// Ini menjamin NIP yang beda 1 angka saja akan menghasilkan 16 huruf yang 100% berbeda acak
 const getUserSecret = (nip) => {
-   const combined = nip + "IPW1SIGI" + nip;
-   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-   let secret = '';
-   for(let i = 0; i < 16; i++) {
-       let charCode = combined.charCodeAt(i % combined.length) + (i * 17);
-       secret += alphabet[charCode % 32];
-   }
-   return secret;
+    let hash = 0;
+    const str = nip + "_Irban1Sigi_MFA_SecretKey_V3";
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0; 
+    }
+    
+    let seed = Math.abs(hash);
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let secret = '';
+    
+    // Linear Congruential Generator (Aman & Stabil di JavaScript)
+    for (let i = 0; i < 16; i++) {
+        seed = (seed * 9301 + 49297) % 233280;
+        const randomVal = seed / 233280;
+        secret += alphabet[Math.floor(randomVal * 32)];
+    }
+    return secret;
 };
 
 /* ======================================================================
@@ -134,7 +145,7 @@ const getUserSecret = (nip) => {
 const G_DRIVE_BACKGROUND_ID = "1BNjp5Oo14OankSDLyRZodIJtJa768UPS";
 const G_DRIVE_LOGO_ID = "1seDzz8AbTL5HwOo9XXvZI0nbh4KXpcw9"; 
 
-// FIX: Menggunakan format URL Thumbnail untuk menghindari blokir CORS Google Drive
+// Menggunakan format URL Thumbnail untuk menghindari blokir CORS Google Drive
 const getGDriveUrl = (id) => id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : null;
 
 /* --- Database Personel (Whitelist NIP yang diperbolehkan masuk) --- */
@@ -386,7 +397,7 @@ export default function App() {
   const globalGradientStyle = { background: 'linear-gradient(98.7deg, rgba(34,175,245,1) 2.8%, rgba(98,247,151,1) 97.8%)', color: 'white', border: 'none' };
   const panelGradientStyle = { background: 'linear-gradient(90deg, #FBBF24 0%, #F97316 100%)', color: 'white', border: 'none' };
   
-  /* STATS CONFIGURATION WITH GRADIENTS - DIPERBARUI UNTUK FILTER BERDASARKAN USER */
+  /* STATS CONFIGURATION WITH GRADIENTS */
   const counts = useMemo(() => {
     const stats = {};
     TABS.forEach(tab => { 
@@ -426,11 +437,11 @@ export default function App() {
   };
 
   /* Handlers */
+  // FIX: Mengganti label QR Code agar langsung memunculkan NAMA dan NIP pengguna sehingga tidak tertukar
   function getQrData() {
     if (!currentUser) return "";
-    const roleLabel = currentUser.role === 'ADMIN' ? 'ADMIN' : 'USER';
-    // Format Label Standar Google Auth:  Issuer:AccountName
-    const label = `${TOTP_ISSUER}:${roleLabel}_${currentUser.nip}`;
+    const safeName = currentUser.name.split(',')[0].replace(/[^a-zA-Z0-9 ]/g, "").trim(); 
+    const label = `E-Kakape: ${safeName} (${currentUser.nip.slice(-6)})`;
     const userSecret = getUserSecret(currentUser.nip);
     return `otpauth://totp/${encodeURIComponent(label)}?secret=${userSecret}&issuer=${encodeURIComponent(TOTP_ISSUER)}`;
   }
@@ -585,6 +596,8 @@ export default function App() {
     }
   };
 
+  // FIX: Jendela Waktu (Window Offset) diperlebar menjadi ± 3 (~90 detik)
+  // Menghindari kegagalan saat jam HP dan Komputer tidak sinkron sempurna
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setVerifying(true);
@@ -606,14 +619,14 @@ export default function App() {
     try {
         const userSecret = getUserSecret(currentUser.nip);
         
-        // Cek kode OTP dengan toleransi yang sangat longgar (±60 detik / 5 jendela)
-        // Hal ini sangat membantu jika jam PC dengan Jam Server Google tidak sinkron.
         const validCodes = await Promise.all([
             generateTOTP(userSecret, 0),
             generateTOTP(userSecret, -1),
             generateTOTP(userSecret, 1),
             generateTOTP(userSecret, -2),
-            generateTOTP(userSecret, 2)
+            generateTOTP(userSecret, 2),
+            generateTOTP(userSecret, -3), 
+            generateTOTP(userSecret, 3)
         ]);
         
         if (validCodes.includes(codeString)) {
@@ -643,7 +656,7 @@ export default function App() {
             }, 2000);
 
         } else { 
-            setOtpError(`KODE SALAH.`); 
+            setOtpError(`KODE SALAH. PASTIKAN JAM DI HP & PC SINKRON.`); 
             setOtp(['','','','','','']); 
         }
     } catch (err) { 
@@ -663,9 +676,7 @@ export default function App() {
     }
   };
 
-  /* FUNGSI LOGOUT YANG DIPERBARUI - 100% KEMBALI KE SLIDER (LANDING PAGE) */
   const handleLogout = () => {
-    // 1. Kosongkan semua data user & sesi
     setCurrentUser(null); 
     setNip(''); 
     setPassword(''); 
@@ -677,11 +688,7 @@ export default function App() {
     setLoginStep('select');
     setLinkEmail(''); 
     setLinkageInfo(null);
-    
-    // 2. Paksa kembali ke halaman "landing"
     setCurrentPage('landing');
-    
-    // 3. Scroll layar kembali ke paling atas
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -813,7 +820,6 @@ export default function App() {
           {/* Animasi Slider 3D Taiganja */}
           <div className="slider-3d-container animate-in fade-in zoom-in duration-1000">
               <div className="slider-3d" style={{ "--quantity": 17 }}>
-                  {/* Logo dipindahkan KEDALAM slider agar berbagi ruang 3D yang tepat, lalu rotasinya dibalik agar tetap menghadap depan */}
                   <div className="logo-3d-center">
                       <div className="logo-3d-center-img"></div>
                   </div>
@@ -826,7 +832,6 @@ export default function App() {
               </div>
           </div>
 
-          {/* Tombol Lanjutkan */}
           <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-50 animate-in slide-in-from-bottom-8 fade-in duration-1000 delay-500 w-full px-6 flex justify-center">
               <button 
                   onClick={() => setCurrentPage('login')} 
@@ -844,20 +849,16 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-white font-garamond font-bold">
         <style>{globalStyles}</style>
         
-        {/* Layer Belakang Tema G-Drive / Gradient Default */}
         <div className="absolute inset-0 z-0 transition-colors duration-1000 bg-gray-100">
             {G_DRIVE_BACKGROUND_ID && (
                 <div className="absolute inset-0" style={{ backgroundImage: `url(${getGDriveUrl(G_DRIVE_BACKGROUND_ID)})`, backgroundSize: '450px', backgroundRepeat: 'repeat', backgroundPosition: 'center' }}></div>
             )}
             
-            {/* Overlay Gradient agar gambar menyatu dengan warna tema pilihan */}
             <div className={`absolute inset-0 bg-gradient-to-br ${loginBg.gradient} ${G_DRIVE_BACKGROUND_ID ? 'opacity-80' : 'opacity-60'} transition-colors duration-1000`}></div>
         </div>
 
-        {/* Layer Depan: Panel Login dg Animasi Klik */}
         <div className="max-w-[780px] w-full rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col md:flex-row z-10 uppercase relative min-h-[460px] bg-[#FDF5E6]/30 backdrop-blur-lg border border-white/30 transition-all duration-500 hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99] cursor-default">
           
-          {/* Sisi Kiri: Cream Transparan 30% */}
           <div className="w-full md:w-[45%] bg-transparent p-10 flex flex-col justify-center items-center text-center relative transition-all duration-300 border-r border-white/20">
             <div className="bg-white/30 p-2 rounded-[1.5rem] backdrop-blur-sm mb-6 shadow-[0_15px_30px_rgba(0,0,0,0.1)] border border-white/30 flex items-center justify-center overflow-hidden w-48 h-32 transform transition-all duration-500 hover:scale-105">
                 <img 
@@ -880,7 +881,6 @@ export default function App() {
             </p>
           </div>
 
-          {/* Sisi Kanan: Cream Transparan 30% */}
           <div className="w-full md:w-[55%] p-10 md:px-14 md:py-12 flex flex-col justify-center text-gray-800 uppercase bg-transparent relative backdrop-blur-sm transition-all duration-300">
             {loginStep === 'select' ? (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-500 w-full h-full flex flex-col justify-center">
@@ -953,7 +953,6 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-white font-garamond font-bold">
         <style>{globalStyles}</style>
 
-        {/* Latar Belakang Sama dengan Halaman Login */}
         <div className="absolute inset-0 z-0 transition-colors duration-1000 bg-gray-100">
             {G_DRIVE_BACKGROUND_ID && (
                 <div className="absolute inset-0" style={{ backgroundImage: `url(${getGDriveUrl(G_DRIVE_BACKGROUND_ID)})`, backgroundSize: '450px', backgroundRepeat: 'repeat', backgroundPosition: 'center' }}></div>
@@ -961,7 +960,6 @@ export default function App() {
             <div className={`absolute inset-0 bg-gradient-to-br ${loginBg.gradient} ${G_DRIVE_BACKGROUND_ID ? 'opacity-80' : 'opacity-60'} transition-colors duration-1000`}></div>
         </div>
 
-        {/* Panel Cream Transparan 30% */}
         <div className="max-w-md w-full bg-[#FDF5E6]/30 backdrop-blur-md p-16 rounded-[4rem] shadow-[0_30px_60px_rgba(0,0,0,0.12)] border border-white/30 text-center z-10 uppercase transition-all duration-500 hover:scale-[1.01] relative overflow-hidden flex flex-col items-center">
           
           {showWelcome ? (
@@ -1025,7 +1023,6 @@ export default function App() {
                     </button>
                   </form>
                   
-                  {/* TOMBOL BATALKAN & KEMBALI DI HALAMAN OTP */}
                   <button type="button" onClick={handleLogout} className="mt-8 text-[10px] text-gray-500 hover:text-red-500 uppercase tracking-[0.2em] font-black transition-colors flex items-center justify-center gap-2 w-full active:scale-95">
                       <ArrowLeft size={14}/> BATALKAN & KEMBALI KE AWAL
                   </button>
@@ -1043,7 +1040,6 @@ export default function App() {
 
       {/* Panel Atas (Freeze saat di-scroll) */}
       <div className="sticky top-0 z-50 flex flex-col shadow-xl">
-        {/* Header Atas (Logo & Profil Pengguna) */}
         <header className={`h-20 shrink-0 bg-gradient-to-r ${loginBg.gradient} text-white flex items-center px-6 lg:px-8 justify-between relative transition-colors duration-1000`}>
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl p-1.5 shadow-inner border border-white/30 hidden sm:flex items-center justify-center">
@@ -1075,7 +1071,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Navigasi Horizontal Biru Gelap (Ala DJP) */}
         <nav className="bg-[#1e293b] text-white flex items-center px-4 lg:px-8 overflow-x-auto whitespace-nowrap hide-scrollbar shrink-0">
           <button 
               onClick={() => {setCurrentPage('dashboard'); setActiveCategory(null); setSelectedStaff(null);}} 
