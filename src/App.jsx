@@ -972,23 +972,28 @@ export default function App() {
               </div>
           ) : (
               <>
-                  <div className={`w-24 h-24 bg-white/50 backdrop-blur-sm rounded-[2.5rem] mx-auto mb-10 flex items-center justify-center shadow-inner border border-white/50 leading-none transition-transform duration-300 ${isLinked ? 'hover:scale-110 text-green-600' : 'hover:rotate-12 text-[#3c8dbc]'}`}>
-                    {isLinked ? <ShieldCheck size={48} /> : <QrCode size={48} />}
+                  <div className={`w-20 h-20 bg-white/50 backdrop-blur-sm rounded-[2rem] mx-auto mb-6 flex items-center justify-center shadow-inner border border-white/50 leading-none transition-transform duration-300 ${isLinked ? 'hover:scale-110 text-green-600' : 'hover:rotate-12 text-[#3c8dbc]'}`}>
+                    {isLinked ? <ShieldCheck size={40} /> : <QrCode size={40} />}
                   </div>
                   <h2 className="text-2xl text-gray-900 mb-2 tracking-tighter uppercase leading-none text-center drop-shadow-sm">Verifikasi Keamanan</h2>
                   
                   {isLinked ? (
-                    <div className="my-10 animate-in fade-in zoom-in duration-500 w-full">
-                        <p className="text-gray-800 font-black text-xl tracking-widest mb-1 drop-shadow-sm bg-white/50 inline-block px-6 py-2 rounded-full border border-white/50 shadow-sm">e-Kakape Irban 1</p>
-                        <div className="bg-green-50/90 backdrop-blur-md border-[1.5px] border-green-200/50 p-6 rounded-3xl shadow-sm text-center mt-6">
+                    <div className="my-6 animate-in fade-in zoom-in duration-500 w-full flex flex-col items-center">
+                        <div className="p-3 bg-white/50 backdrop-blur-sm border-[1.5px] border-white/50 rounded-[2rem] inline-block shadow-sm hover:border-gray-200 transition-colors mb-4">
+                             <img src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(getQrData())}`} alt="QR" className="w-32 h-32 rounded-xl mix-blend-multiply" />
+                        </div>
+                        <div className="bg-green-50/90 w-full backdrop-blur-md border-[1.5px] border-green-200/50 p-4 rounded-3xl shadow-sm text-center">
                             <div className="flex items-center justify-center gap-2 text-green-700">
                                 <Lock size={16} />
                                 <span className="text-[12px] font-black tracking-widest uppercase">Keamanan MFA Aktif</span>
                             </div>
-                            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-4 leading-relaxed bg-white/60 p-3 rounded-xl border border-white/50">
-                                TERTAUT PADA EMAIL: <br/> <span className="text-green-700 text-[11px] block mt-1 lowercase font-black tracking-widest">{maskEmail(linkageInfo?.email || 'EMAIL ANDA')}</span>
+                            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-2 leading-relaxed bg-white/60 p-2.5 rounded-xl border border-white/50">
+                                TERTAUT PADA EMAIL: <br/> <span className="text-green-700 text-[11px] block mt-0.5 lowercase font-black tracking-widest">{maskEmail(linkageInfo?.email || 'EMAIL ANDA')}</span>
                             </p>
                         </div>
+                        <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mt-3 text-center leading-relaxed">
+                            * SCAN KEMBALI QR CODE DI ATAS JIKA ANDA KEHILANGAN <br/> AKSES GOOGLE AUTHENTICATOR DI HP ANDA.
+                        </p>
                     </div>
                   ) : (
                     <div className="my-10 animate-in fade-in duration-500 w-full">
